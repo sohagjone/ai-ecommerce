@@ -1,7 +1,7 @@
-"""AI layer (OpenAI) with a deterministic, clearly-labelled demo mode when no key is configured."""
+"""AI layer (Groq / OpenAI-compatible) with a deterministic, clearly-labelled demo mode when no key is configured."""
 import json, re, time
 
-from .config import DEFAULT_MODEL, get_secret, has_api_key
+from .config import default_model, has_api_key, provider_cfg
 from .data import clean_text, load_sample, normalize_record
 from .scoring import finance, niche_score
 
@@ -18,36 +18,40 @@ class AIError(Exception):
 
 
 def _client():
+    """Groq and OpenAI both speak the OpenAI API; only the base URL differs."""
     from openai import OpenAI
-    return OpenAI(api_key=get_secret("OPENAI_API_KEY"), timeout=60)
+    cfg = provider_cfg()
+    return OpenAI(api_key=cfg["api_key"], base_url=cfg["base_url"], timeout=60)
 
 
 def call_json(prompt, model=None, retries=3):
     if not has_api_key():
-        raise AIError("No OpenAI API key configured. Running in demo mode.")
+        raise AIError("No GROQ_API_KEY configured. Running in demo mode.")
     import openai
+    label = provider_cfg()["label"]
+    model = model or default_model()
     delay = 2
     for attempt in range(retries):
         try:
             r = _client().chat.completions.create(
-                model=model or DEFAULT_MODEL, response_format={"type": "json_object"},
+                model=model, response_format={"type": "json_object"},
                 messages=[{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}])
             txt = r.choices[0].message.content or "{}"
             return json.loads(re.sub(r"^```(?:json)?|```$", "", txt.strip()))
         except openai.RateLimitError:
             if attempt == retries - 1:
-                raise AIError("OpenAI rate limit reached. Wait a minute and try again.")
+                raise AIError(f"{label} rate limit reached. Wait a minute and try again.")
             time.sleep(delay); delay *= 2
         except openai.AuthenticationError:
-            raise AIError("The OpenAI API key was rejected. Check OPENAI_API_KEY.")
+            raise AIError(f"The {label} API key was rejected. Check {provider_cfg()['key']}.")
         except openai.NotFoundError:
-            raise AIError(f"Model '{model or DEFAULT_MODEL}' was not found for this key. Change it in Settings.")
+            raise AIError(f"Model '{model}' was not found for this key. Change it in Settings.")
         except (openai.APIConnectionError, openai.APITimeoutError):
             if attempt == retries - 1:
-                raise AIError("Could not reach OpenAI. Check your connection and try again.")
+                raise AIError(f"Could not reach {label}. Check your connection and try again.")
             time.sleep(delay); delay *= 2
         except openai.APIError as e:
-            raise AIError(f"OpenAI API error: {getattr(e, 'message', type(e).__name__)[:200]}")
+            raise AIError(f"{label} API error: {getattr(e, 'message', type(e).__name__)[:200]}")
         except json.JSONDecodeError:
             if attempt == retries - 1:
                 raise AIError("The AI returned an unreadable response. Please try again.")

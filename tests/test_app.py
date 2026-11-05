@@ -1,6 +1,6 @@
 import os, sys, tempfile
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "a.db")
-os.environ.pop("OPENAI_API_KEY", None)
+[os.environ.pop(k, None) for k in ("OPENAI_API_KEY", "GROQ_API_KEY")]
 from streamlit.testing.v1 import AppTest
 
 PAGES = ["📊 Overview", "🔍 Product Discovery", "⚖️ Product Comparison", "🧭 Niche Research", "🧮 Profit Calculator",

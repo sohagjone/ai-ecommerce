@@ -2,7 +2,7 @@
 
 A Streamlit app for sellers, dropshippers and resellers: discover products, compare them, rank niches, calculate resale profit, analyse CSV/Excel product lists and export PDF / Excel / CSV reports.
 
-**Works without an API key** in clearly labelled *demo mode* (built-in illustrative sample data). Add an OpenAI key for AI mode.
+**Works without an API key** in clearly labelled *demo mode* (built-in illustrative sample data). Add a Groq API key for AI mode.
 
 ## Honesty about data
 - No scraping and no live marketplace data. Prices, demand and competition are **user-entered**, **sample** or **AI estimates**, and every result is labelled with its source.
@@ -17,13 +17,13 @@ cp .env.example .env        # optional: add OPENAI_API_KEY
 streamlit run app.py
 ```
 
-## Configure AI (optional)
-Set in `.env` (local) or Streamlit **Secrets** (cloud):
+## Configure AI (optional, Groq)
+Get a key at https://console.groq.com/keys, then set it in `.env` (local) or Streamlit **Secrets** (cloud):
 ```
-OPENAI_API_KEY="sk-..."
-OPENAI_MODEL="gpt-4o-mini"   # any chat model your key can use; also editable in Settings
+GROQ_API_KEY="gsk_..."
+GROQ_MODEL="llama-3.3-70b-versatile"   # optional; also editable in Settings
 ```
-Keys are read from env/secrets only, never shown in the UI or exports. Rate limits and API errors are retried/handled with friendly messages. Optional marketplace data APIs are not bundled; add your own authorised source in `core/ai.py`/`core/data.py` and label it `verified`.
+Groq's OpenAI-compatible endpoint is used (`https://api.groq.com/openai/v1`). `OPENAI_API_KEY` / `OPENAI_MODEL` still work as an optional fallback when no Groq key is set. Keys are read from env/secrets only, never shown in the UI or exports. Rate limits and API errors are retried/handled with friendly messages. Optional marketplace data APIs are not bundled; add your own authorised source and label it `verified`.
 
 ## Pages
 Overview · Product Discovery · Product Comparison (2-5 products) · Niche Research · Profit Calculator · Resale Analyzer (manual / CSV / Excel / sample) · Saved Products · Reports & Exports · Settings.
@@ -39,7 +39,7 @@ Required columns: `name`, `selling_price`, `sourcing_cost`. Optional: `category,
 ## Deploy to Streamlit Community Cloud
 1. Push this folder to a GitHub repo (`.env` and `data/app.db` are git-ignored).
 2. On share.streamlit.io choose **New app**, select the repo, main file `app.py`.
-3. *Advanced settings → Secrets*: paste `OPENAI_API_KEY = "sk-..."` (optional).
+3. *Advanced settings → Secrets*: paste `GROQ_API_KEY = "gsk_..."` (optional).
 4. Deploy. Note: SQLite storage on Community Cloud is **ephemeral** (reset on restart); download reports you need, or point `DB_PATH` at persistent storage elsewhere.
 
 ## Tests
@@ -52,4 +52,4 @@ Covers known profit examples, CSV/Excel validation, demo discovery, DB, PDF/Exce
 `app.py` entry · `features/` one module per page · `core/` calc, scoring, db, data, ai, reports, ui · `data/sample_products.csv` · `sample_report/` example exports.
 
 ## Commercial use
-Review OpenAI's terms and your marketplaces' policies; add authentication and a persistent database before offering this as multi-user SaaS.
+Review Groq's terms and your marketplaces' policies; add authentication and a persistent database before offering this as multi-user SaaS.

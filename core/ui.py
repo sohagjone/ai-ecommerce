@@ -26,7 +26,7 @@ def mode_banner(use_ai):
         st.caption("🤖 AI mode: results are **AI estimates**, not verified market data. Check them against real suppliers and marketplaces.")
     else:
         st.info("🧪 **Demo mode**: results come from a built-in illustrative sample dataset (no live market data). "
-                "Add an `OPENAI_API_KEY` to enable AI mode, or enter your own data.")
+                "Add a `GROQ_API_KEY` to enable AI mode, or enter your own data.")
 
 
 def money(x):

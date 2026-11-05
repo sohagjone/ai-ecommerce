@@ -1,6 +1,6 @@
 import io, os, sys, tempfile
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "t.db")
-os.environ.pop("OPENAI_API_KEY", None)
+[os.environ.pop(k, None) for k in ("OPENAI_API_KEY", "GROQ_API_KEY")]
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import pandas as pd
 from core import ai, db
@@ -65,3 +65,13 @@ def test_demo_discovery_filters():
     p = dict(category="pet", marketplace="Amazon US", min_price=10, max_price=40, min_margin=15, min_demand=5, max_competition=9, traits="", n=5)
     recs, mode = ai.discover_products(p, use_ai=False)
     assert mode == "sample" and recs and all("pet" in (r["name"] + r["category"]).lower() for r in recs)
+
+
+def test_groq_provider_selected(monkeypatch):
+    from core import config
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test"); monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    assert config.get_provider() == "groq" and "groq.com" in config.provider_cfg()["base_url"]
+    assert config.default_model() == "llama-3.3-70b-versatile"
+    assert ai._client().base_url.host == "api.groq.com"
+    monkeypatch.delenv("GROQ_API_KEY"); assert config.get_provider() == "openai"
+    monkeypatch.delenv("OPENAI_API_KEY"); assert config.get_provider() is None
