@@ -32,7 +32,7 @@ def get_secret(name, default=None):
 
 PROVIDERS = {
     "groq": dict(label="Groq", key="GROQ_API_KEY", base_url="https://api.groq.com/openai/v1",
-                 model_env="GROQ_MODEL", default_model="llama-3.3-70b-versatile"),
+                 model_env="GROQ_MODEL", default_model="openai/gpt-oss-120b"),
     "openai": dict(label="OpenAI", key="OPENAI_API_KEY", base_url=None,
                    model_env="OPENAI_MODEL", default_model="gpt-4o-mini"),
 }
@@ -51,9 +51,24 @@ def provider_cfg():
     return {**PROVIDERS[name], "name": name, "api_key": get_secret(PROVIDERS[name]["key"])} if name else None
 
 
+# Groq models that were shut down, mapped to Groq's recommended replacements.
+RETIRED_GROQ_MODELS = {
+    "llama-3.3-70b-versatile": "openai/gpt-oss-120b", "llama-3.1-8b-instant": "openai/gpt-oss-20b",
+    "qwen/qwen3-32b": "openai/gpt-oss-120b", "meta-llama/llama-4-scout-17b-16e-instruct": "openai/gpt-oss-120b",
+    "meta-llama/llama-4-maverick-17b-128e-instruct": "openai/gpt-oss-120b", "moonshotai/kimi-k2-instruct-0905": "openai/gpt-oss-120b",
+}
+
+
+def resolve_model(model):
+    """Swap a retired Groq model name for its replacement so old .env/Settings values keep working."""
+    if get_provider() == "groq":
+        return RETIRED_GROQ_MODELS.get(model, model)
+    return model
+
+
 def default_model() -> str:
     cfg = provider_cfg() or {**PROVIDERS["groq"]}
-    return os.getenv(cfg["model_env"]) or cfg["default_model"]
+    return resolve_model(os.getenv(cfg["model_env"]) or cfg["default_model"])
 
 
 DEFAULT_MODEL = default_model()

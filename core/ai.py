@@ -1,7 +1,7 @@
 """AI layer (Groq / OpenAI-compatible) with a deterministic, clearly-labelled demo mode when no key is configured."""
 import json, re, time
 
-from .config import default_model, has_api_key, provider_cfg
+from .config import default_model, has_api_key, provider_cfg, resolve_model
 from .data import clean_text, load_sample, normalize_record
 from .scoring import finance, niche_score
 
@@ -17,6 +17,17 @@ class AIError(Exception):
     """Raised with a user-friendly message."""
 
 
+_SKIP = ("whisper", "guard", "safeguard", "tts", "orpheus", "embed", "compound", "distil")
+_PREFER = ("openai/gpt-oss-120b", "openai/gpt-oss-20b")
+_fallback = {}  # model that replaced an unavailable one, for this process
+
+
+def available_models():
+    """Chat-capable model ids the current key can use (live from the provider)."""
+    ids = sorted(m.id for m in _client().models.list().data)
+    return [i for i in ids if not any(x in i.lower() for x in _SKIP)]
+
+
 def _client():
     """Groq and OpenAI both speak the OpenAI API; only the base URL differs."""
     from openai import OpenAI
@@ -29,7 +40,8 @@ def call_json(prompt, model=None, retries=3):
         raise AIError("No GROQ_API_KEY configured. Running in demo mode.")
     import openai
     label = provider_cfg()["label"]
-    model = model or default_model()
+    model = resolve_model(model or default_model())
+    model = _fallback.get(model, model)
     delay = 2
     for attempt in range(retries):
         try:
@@ -45,7 +57,16 @@ def call_json(prompt, model=None, retries=3):
         except openai.AuthenticationError:
             raise AIError(f"The {label} API key was rejected. Check {provider_cfg()['key']}.")
         except openai.NotFoundError:
-            raise AIError(f"Model '{model}' was not found for this key. Change it in Settings.")
+            # Model retired or not enabled for this key: try the best model the key can actually use.
+            try:
+                avail = [m for m in available_models() if m != model]
+            except Exception:
+                avail = []
+            alt = next((m for m in _PREFER if m in avail), avail[0] if avail else None)
+            if alt and attempt < retries - 1:
+                _fallback[model] = model = alt
+                continue
+            raise AIError(f"Model '{model}' is not available for this key. Open Settings, click 'Load available models' and pick one.")
         except (openai.APIConnectionError, openai.APITimeoutError):
             if attempt == retries - 1:
                 raise AIError(f"Could not reach {label}. Check your connection and try again.")

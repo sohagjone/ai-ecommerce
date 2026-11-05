@@ -71,7 +71,32 @@ def test_groq_provider_selected(monkeypatch):
     from core import config
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test"); monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     assert config.get_provider() == "groq" and "groq.com" in config.provider_cfg()["base_url"]
-    assert config.default_model() == "llama-3.3-70b-versatile"
+    assert config.default_model() == "openai/gpt-oss-120b"
     assert ai._client().base_url.host == "api.groq.com"
     monkeypatch.delenv("GROQ_API_KEY"); assert config.get_provider() == "openai"
     monkeypatch.delenv("OPENAI_API_KEY"); assert config.get_provider() is None
+
+
+def test_retired_groq_model_is_mapped_and_notfound_falls_back(monkeypatch):
+    import types, httpx, openai
+    from core import config
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test"); monkeypatch.setenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    assert config.default_model() == "openai/gpt-oss-120b"
+    calls = []
+
+    class C:
+        class models:
+            list = staticmethod(lambda: types.SimpleNamespace(data=[types.SimpleNamespace(id=i) for i in ("whisper-large-v3", "foo/bar", "openai/gpt-oss-20b")]))
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kw):
+                    calls.append(kw["model"])
+                    if kw["model"] != "openai/gpt-oss-20b":
+                        raise openai.NotFoundError("nf", response=httpx.Response(404, request=httpx.Request("POST", "http://x")), body=None)
+                    m = types.SimpleNamespace(content='{"ok": 1}')
+                    return types.SimpleNamespace(choices=[types.SimpleNamespace(message=m)])
+    monkeypatch.setattr(ai, "_client", lambda: C)
+    assert ai.call_json("hi", model="some/missing-model") == {"ok": 1}
+    assert calls == ["some/missing-model", "openai/gpt-oss-20b"] and ai.available_models() == ["foo/bar", "openai/gpt-oss-20b"]
+    ai._fallback.clear()

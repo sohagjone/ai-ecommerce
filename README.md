@@ -21,7 +21,7 @@ streamlit run app.py
 Get a key at https://console.groq.com/keys, then set it in `.env` (local) or Streamlit **Secrets** (cloud):
 ```
 GROQ_API_KEY="gsk_..."
-GROQ_MODEL="llama-3.3-70b-versatile"   # optional; also editable in Settings
+GROQ_MODEL="openai/gpt-oss-120b"   # optional; Settings can list the models your key can use
 ```
 Groq's OpenAI-compatible endpoint is used (`https://api.groq.com/openai/v1`). `OPENAI_API_KEY` / `OPENAI_MODEL` still work as an optional fallback when no Groq key is set. Keys are read from env/secrets only, never shown in the UI or exports. Rate limits and API errors are retried/handled with friendly messages. Optional marketplace data APIs are not bundled; add your own authorised source and label it `verified`.
 
